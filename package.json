@@ -1,0 +1,27 @@
+{
+  "name": "quiz-generator",
+  "version": "1.0.0",
+  "description": "A quiz app powered by Open Trivia DB, built to practice Claude Code MCP/skill/agent workflows",
+  "main": "server-http.js",
+  "scripts": {
+    "start": "node server-http.js",
+    "mcp": "node mcp/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheDevPP/quiz-generator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/TheDevPP/quiz-generator/issues"
+  },
+  "homepage": "https://github.com/TheDevPP/quiz-generator#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^4.21.0",
+    "zod": "^4.4.3"
+  }
+}

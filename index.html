@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+
+    <!-- Start Screen -->
+    <div id="screen-start" class="screen">
+      <h1>Trivia Quiz</h1>
+      <p class="subtitle">Powered by Open Trivia DB</p>
+      <div class="options">
+        <label for="category">Category</label>
+        <select id="category">
+          <option value="">Any Category</option>
+          <option value="9">General Knowledge</option>
+          <option value="10">Books</option>
+          <option value="11">Film</option>
+          <option value="12">Music</option>
+          <option value="14">Television</option>
+          <option value="15">Video Games</option>
+          <option value="17">Science &amp; Nature</option>
+          <option value="18">Computers</option>
+          <option value="19">Mathematics</option>
+          <option value="20">Mythology</option>
+          <option value="21">Sports</option>
+          <option value="22">Geography</option>
+          <option value="23">History</option>
+          <option value="24">Politics</option>
+          <option value="25">Art</option>
+          <option value="26">Celebrities</option>
+          <option value="27">Animals</option>
+          <option value="28">Vehicles</option>
+          <option value="29">Comics</option>
+          <option value="30">Gadgets</option>
+          <option value="31">Anime &amp; Manga</option>
+          <option value="32">Cartoon &amp; Animations</option>
+        </select>
+
+        <label for="difficulty">Difficulty</label>
+        <select id="difficulty">
+          <option value="">Any Difficulty</option>
+          <option value="easy">Easy</option>
+          <option value="medium" selected>Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+
+        <label for="amount">Questions</label>
+        <select id="amount">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="15">15</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+      <button id="btn-start" class="btn-primary">Start Quiz</button>
+    </div>
+
+    <!-- Quiz Screen -->
+    <div id="screen-quiz" class="screen hidden">
+      <div class="quiz-header">
+        <span id="progress">Question 1 / 10</span>
+        <span id="score">Score: 0</span>
+        <span id="difficulty-badge" class="badge badge-medium">medium</span>
+      </div>
+
+      <div id="question-card" class="question-card">
+        <p id="category-label" class="category-label"></p>
+        <h2 id="question-text"></h2>
+      </div>
+
+      <div id="answers" class="answers"></div>
+
+      <div id="feedback" class="feedback hidden">
+        <p id="feedback-text"></p>
+        <button id="btn-next" class="btn-primary">Next Question</button>
+      </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="screen-results" class="screen hidden">
+      <h1>Quiz Complete!</h1>
+      <div class="results-card">
+        <p class="results-score" id="final-score"></p>
+        <p class="results-detail" id="final-detail"></p>
+      </div>
+      <button id="btn-restart" class="btn-primary">Play Again</button>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

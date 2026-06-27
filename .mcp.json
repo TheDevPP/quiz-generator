@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "opentdb": {
+      "command": "node",
+      "args": ["mcp/server.js"],
+      "description": "Fetches trivia questions from Open Trivia DB (https://opentdb.com). Provides the get_questions tool for fetching questions with configurable category, difficulty, amount, and type."
+    }
+  }
+}
