@@ -1,169 +1,221 @@
 #!/usr/bin/env node
 
+import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { S3Client, GetObjectCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { Readable } from "stream";
 import { z } from "zod";
+import { PDFParse } from "pdf-parse";
+import mammoth from "mammoth";
 
-const API_BASE = "https://opentdb.com/api.php";
+// --- R2 Client ---
 
-// HTML entity map for decoding Open Trivia DB responses
-const HTML_ENTITIES = {
-  "&amp;": "&",
-  "&lt;": "<",
-  "&gt;": ">",
-  "&quot;": '"',
-  "&#039;": "'",
-  "&apos;": "'",
-  "&ldquo;": "“",
-  "&rdquo;": "”",
-  "&lsquo;": "‘",
-  "&rsquo;": "’",
-  "&ndash;": "–",
-  "&mdash;": "—",
-  "&hellip;": "…",
-  "&nbsp;": " ",
-  "&eacute;": "é",
-  "&egrave;": "è",
-  "&uuml;": "ü",
-  "&ouml;": "ö",
-  "&auml;": "ä",
-  "&szlig;": "ß",
-};
+const R2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+  },
+});
 
-function decodeText(str) {
-  if (typeof str !== "string") return str;
-  // URL-decode first (Open Trivia DB url3986 encoding)
-  let decoded = decodeURIComponent(str);
-  // Replace named HTML entities
-  for (const [entity, char] of Object.entries(HTML_ENTITIES)) {
-    decoded = decoded.replaceAll(entity, char);
+const BUCKET = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+
+// --- Helpers ---
+
+async function streamToBuffer(stream) {
+  if (stream instanceof Buffer) return stream;
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   }
-  // Replace numeric decimal entities: &#123;
-  decoded = decoded.replace(/&#(\d+);/g, (_, code) =>
-    String.fromCharCode(Number(code))
-  );
-  // Replace numeric hex entities: &#x1F;
-  decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
-    String.fromCharCode(parseInt(hex, 16))
-  );
-  return decoded;
+  return Buffer.concat(chunks);
 }
 
-// Response code meanings from Open Trivia DB
-const RESPONSE_CODES = {
-  0: "Success",
-  1: "No Results - the API doesn't have enough questions for the query",
-  2: "Invalid Parameter - contains an invalid parameter",
-  3: "Token Not Found - session token does not exist",
-  4: "Token Empty - all questions have been exhausted for the session",
-  5: "Rate Limit - too many requests, wait 5 seconds",
-};
+async function downloadFromR2(key) {
+  const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+  const response = await R2.send(command);
+  return streamToBuffer(response.Body);
+}
+
+function getFileExtension(key) {
+  const parts = key.split(".");
+  return parts.length > 1 ? parts.pop().toLowerCase() : "";
+}
+
+function chunkText(text, maxChunkSize = 1500) {
+  // Split by paragraphs first, then merge small paragraphs into chunks
+  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+  const chunks = [];
+  let currentChunk = "";
+
+  for (const paragraph of paragraphs) {
+    const trimmed = paragraph.trim();
+    if (currentChunk.length + trimmed.length + 2 > maxChunkSize && currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
+      currentChunk = "";
+    }
+    currentChunk += (currentChunk ? "\n\n" : "") + trimmed;
+  }
+
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk.trim());
+  }
+
+  // If a single paragraph exceeds maxChunkSize, split by sentences
+  const result = [];
+  for (const chunk of chunks) {
+    if (chunk.length <= maxChunkSize) {
+      result.push(chunk);
+    } else {
+      const sentences = chunk.match(/[^.!?]+[.!?]+\s*/g) || [chunk];
+      let sentenceChunk = "";
+      for (const sentence of sentences) {
+        if (sentenceChunk.length + sentence.length > maxChunkSize && sentenceChunk.length > 0) {
+          result.push(sentenceChunk.trim());
+          sentenceChunk = "";
+        }
+        sentenceChunk += sentence;
+      }
+      if (sentenceChunk.trim().length > 0) {
+        result.push(sentenceChunk.trim());
+      }
+    }
+  }
+
+  return result;
+}
+
+// --- Text Extraction ---
+
+async function extractPdf(buffer) {
+  const parser = new PDFParse({ data: buffer });
+  const [textResult, infoResult] = await Promise.all([
+    parser.getText(),
+    parser.getInfo({ parsePageInfo: true }),
+  ]);
+  await parser.destroy();
+  return {
+    text: textResult.text,
+    pageCount: infoResult.total || 0,
+    info: infoResult.info || {},
+  };
+}
+
+async function extractDocx(buffer) {
+  const result = await mammoth.extractRawText({ buffer });
+  return {
+    text: result.value,
+    warnings: result.messages || [],
+  };
+}
+
+async function extractText(key) {
+  const ext = getFileExtension(key);
+  const buffer = await downloadFromR2(key);
+
+  if (ext === "pdf") {
+    return extractPdf(buffer);
+  } else if (ext === "docx") {
+    return extractDocx(buffer);
+  } else {
+    throw new Error(`Unsupported file type: .${ext}. Only PDF and DOCX are supported.`);
+  }
+}
+
+// --- MCP Server ---
 
 const server = new McpServer({
-  name: "quiz-generator",
+  name: "quiz-generator-r2",
   version: "1.0.0",
 });
 
 server.tool(
-  "get_questions",
-  "Fetch trivia questions from Open Trivia DB. Returns an array of questions with decoded text, correct answer, and incorrect answers.",
+  "extract_reference",
+  "Extract and chunk text from a PDF or Word document stored in Cloudflare R2. Returns an array of { chunk_text, source_page, source_doc }.",
   {
-    amount: z
+    file_path: z
+      .string()
+      .describe("The R2 object key (file path) of the document to extract, e.g. 'handbooks/health-guide.pdf'"),
+    max_chunk_size: z
       .number()
       .int()
-      .min(1)
-      .max(50)
-      .default(10)
-      .describe("Number of questions to fetch (1-50)"),
-    category: z
-      .number()
-      .int()
-      .min(9)
-      .max(32)
+      .min(200)
+      .max(5000)
+      .default(1500)
       .optional()
-      .describe(
-        "Category ID (9=General Knowledge, 10=Books, 11=Film, 12=Music, 14=Television, 15=Video Games, 17=Science & Nature, 18=Computers, 19=Mathematics, 20=Mythology, 21=Sports, 22=Geography, 23=History, 24=Politics, 25=Art, 26=Celebrities, 27=Animals, 28=Vehicles, 29=Comics, 30=Gadgets, 31=Anime & Manga, 32=Cartoon & Animations)"
-      ),
-    difficulty: z
-      .enum(["easy", "medium", "hard"])
-      .optional()
-      .describe("Difficulty level"),
-    type: z
-      .enum(["multiple", "boolean"])
-      .optional()
-      .describe("Question type: multiple (4 options) or boolean (true/false)"),
+      .describe("Maximum characters per chunk (default: 1500)"),
   },
-  async ({ amount, category, difficulty, type }) => {
-    const params = new URLSearchParams({ amount: String(amount) });
-    if (category !== undefined) params.set("category", String(category));
-    if (difficulty !== undefined) params.set("difficulty", difficulty);
-    if (type !== undefined) params.set("type", type);
-    // Use url3986 encoding to avoid encoding issues
-    params.set("encode", "url3986");
-
-    const url = `${API_BASE}?${params.toString()}`;
-
+  async ({ file_path, max_chunk_size }) => {
     try {
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Open Trivia DB returned HTTP ${response.status}: ${response.statusText}`,
-            },
-          ],
-          isError: true,
-        };
+      // Verify file exists
+      try {
+        await R2.send(new HeadObjectCommand({ Bucket: BUCKET, Key: file_path }));
+      } catch (err) {
+        if (err.name === "NotFound" || err.$metadata?.httpStatusCode === 404) {
+          return {
+            content: [{ type: "text", text: `File not found in R2: ${file_path}` }],
+            isError: true,
+          };
+        }
+        throw err;
       }
 
-      const data = await response.json();
+      const extracted = await extractText(file_path);
+      const chunks = chunkText(extracted.text, max_chunk_size || 1500);
 
-      if (data.response_code !== 0) {
-        const reason =
-          RESPONSE_CODES[data.response_code] || `Unknown code ${data.response_code}`;
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Open Trivia DB error (code ${data.response_code}): ${reason}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const questions = data.results.map((q) => ({
-        question: decodeText(q.question),
-        correct_answer: decodeText(q.correct_answer),
-        incorrect_answers: q.incorrect_answers.map(decodeText),
-        category: decodeText(q.category),
-        difficulty: q.difficulty,
-        type: q.type,
+      const result = chunks.map((chunk, index) => ({
+        chunk_text: chunk,
+        source_page: extracted.pageCount ? `chunk ${index + 1} of ${chunks.length}` : undefined,
+        source_doc: file_path,
       }));
 
       return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(questions, null, 2),
-          },
-        ],
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
     } catch (err) {
       return {
-        content: [
-          {
-            type: "text",
-            text: `Failed to fetch from Open Trivia DB: ${err.message}`,
-          },
-        ],
+        content: [{ type: "text", text: `Failed to extract reference: ${err.message}` }],
         isError: true,
       };
     }
   }
 );
+
+server.tool(
+  "list_references",
+  "Returns metadata list of uploaded reference documents in Cloudflare R2.",
+  {},
+  async () => {
+    try {
+      const command = new ListObjectsV2Command({ Bucket: BUCKET });
+      const response = await R2.send(command);
+
+      const files = (response.Contents || []).map((obj) => ({
+        key: obj.Key,
+        size: obj.Size,
+        lastModified: obj.LastModified?.toISOString(),
+        type: getFileExtension(obj.Key),
+      }));
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(files, null, 2) }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: "text", text: `Failed to list references: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// --- Exports (for use by server/index.js) ---
+
+export { downloadFromR2, extractText, chunkText };
+
+// --- Start ---
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
