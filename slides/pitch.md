@@ -89,4 +89,4 @@ now becomes an **interactive quiz** teenagers actually want to use.
 - [x] MCP + skill + agent used
 - [x] report.md in team repo — ch-3/TheDevPP/report.md
 - [x] 6 slides × 20 seconds
-- [ ] 3 GitHub stars — ask teammates to ⭐ the repo
+- [x] 3 GitHub stars — ask teammates to ⭐ the repo
