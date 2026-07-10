@@ -1,63 +1,112 @@
 # Quiz Generator
+> Name: TBD — to be updated before launch
 
-A trivia quiz app that gets smarter as you play.
+A health education quiz platform for teenagers and youth in Myanmar, focused on adolescent health, general health, and sexual and reproductive health (SRH).
 
-Pick a category, answer questions, and watch the difficulty adjust to match your skill level. Get three in a row right and the questions get harder. Struggle with two wrong and it eases up. The app figures out your level and keeps you in the sweet spot — challenged but not frustrated.
+Questions are generated from verified medical reference handbooks using Claude API, reviewed and approved by a volunteer doctor before going live. Three question types keep learning engaging: multiple choice, true/false myth-busting, and real-life scenario questions.
 
-No account needed. No sign-up. Just open it and play.
+**We don't collect any information about you. Ever.**
+
+No account. No sign-up. No tracking. Just open it and learn.
+
+---
+
+## Who It's For
+
+Teenagers and youth in Myanmar who need accurate, non-judgmental health information in a format that's actually engaging. Topics cover adolescent health, general health, and sexual and reproductive health (SRH) — areas where misinformation is common and trusted, accessible resources are rare.
 
 ---
 
 ## How It Works
 
-The app is built around three components that work together:
+The platform is built around three components that work together:
 
 ### MCP Server (`mcp/server.js`)
 
-An MCP (Model Context Protocol) server that wraps the [Open Trivia DB](https://opentdb.com/) API. It handles fetching questions, decoding HTML-encoded text, and returning clean data. The frontend and Claude Code both use this server as the single source for trivia data — no direct API calls anywhere else.
+A custom MCP (Model Context Protocol) server that connects to Cloudflare R2 private storage. It handles all document interactions — no direct R2 access happens anywhere else in the codebase.
 
-### Quiz Design Skill (`.claude/skills/quiz-design/SKILL.md`)
+**Tools exposed:**
+- `extract_reference(file_path)` — downloads a PDF or Word document from R2, extracts and chunks the text into structured blocks `{ chunk_text, source_page, source_doc }` using `pdf-parse` (PDF) and `mammoth` (DOCX)
+- `list_references()` — returns metadata for all uploaded reference documents in the bucket
 
-A processing layer that sits between fetching and display. Every question passes through these checks before you see it:
+### Health Question Generation Skill (`.claude/skills/health-question-generation/SKILL.md`)
 
-- **HTML entity decoding** — turns `&amp;`, `&#039;`, etc. into readable text
-- **Answer shuffling** — the correct answer goes into a random position so it's not always option D
-- **Quality gate** — rejects questions with "all of the above" phrasing, duplicate answers, leaked HTML, or answers given away in the question text
-- **Difficulty consistency** — makes sure questions don't jump randomly from easy to hard
+Encodes the rules Claude API follows when generating questions from a source chunk. Every generated question must:
 
-### Difficulty Calibrator (`.claude/agents/difficulty-calibrator.md`)
+- Be written in plain, non-clinical, peer-appropriate language for teenagers
+- Come in one of three types — chosen based on the content of the source chunk:
 
-A subagent that watches your recent answers and recommends the next difficulty level:
+| Question Type | When Used | Format |
+|---|---|---|
+| **Multiple Choice** | Facts, definitions, statistics | Question + 4 options + correct answer + explanation |
+| **True or False** | Common myths, misconceptions | Statement + T/F + explanation of why |
+| **Scenario** | Behaviors, actions, what to do | Real-life situation + 4 response options + explanation |
 
-| Your recent performance | What happens |
+- Include a 2–3 sentence plain-language explanation with every answer
+- Never invent facts not present in the source chunk
+- Apply SRH-specific tone guidelines — normalize topics, no shame-based framing
+
+### Doctor Review Queue (`.claude/agents/doctor-review-queue.md`)
+
+A subagent that governs the review workflow for every AI-generated question. Nothing reaches a user without passing through this gate.
+
+| Doctor's Decision | What Happens |
 |---|---|
-| 3 correct in a row | Difficulty goes up |
-| 2 wrong in a row | Difficulty goes down |
-| Mixed results | Difficulty stays the same |
-| Already at the hardest level | Holds steady (can't go higher) |
-| Already at the easiest level | Holds steady (can't go lower) |
+| **Approve** | Question enters the quiz pool with `status: verified` |
+| **Edit then approve** | Doctor modifies question/answers/explanation, then approves |
+| **Reject** | Question is discarded with a recorded reason |
 
-The calibrator runs between questions — you answer, it analyzes, and the next question is fetched at the recommended difficulty.
+The doctor reviews each question alongside the source chunk it was generated from — so they can always verify accuracy against the original handbook text.
+
+---
+
+## Content Pipeline
+
+```
+Admin uploads handbook PDF/DOCX
+        ↓
+MCP server extracts and chunks text
+        ↓
+Claude API generates questions per chunk
+(health-question-generation skill as system prompt)
+        ↓
+Questions stored as status: pending_review
+        ↓
+Doctor reviews in admin UI
+(approve / edit+approve / reject)
+        ↓
+Approved questions enter quiz pool as status: verified
+        ↓
+Teenagers play the quiz
+```
+
+---
+
+## Privacy
+
+**No user data is collected at any point.** The app records nothing about who uses it, what questions they answer, or how they perform. This is not a policy buried in a footer — it is a structural design decision. There is no user database, no session tracking, and no analytics.
 
 ---
 
 ## Screenshots
 
 ### Main Quiz Screen
-
 ![Main quiz screen](screenshots/quiz-screen.png)
 
-### Answered Question — Correct Feedback
+### Multiple Choice Question
+![Multiple choice question](screenshots/multiple-choice.png)
 
+### True or False Question
+![True or false question](screenshots/true-or-false.png)
+
+### Scenario Question
+![Scenario question](screenshots/scenario-question.png)
+
+### Correct Answer with Explanation
 ![Correct answer feedback](screenshots/correct-answer.png)
 
-### Answered Question — Incorrect Feedback
-
-![Incorrect answer feedback](screenshots/incorrect-answer.png)
-
-### Difficulty Change in Action
-
-![Difficulty adjustment](screenshots/difficulty-change.png)
+### Admin — Doctor Review Queue
+![Doctor review queue](screenshots/doctor-review.png)
 
 ---
 
@@ -67,6 +116,8 @@ The calibrator runs between questions — you answer, it analyzes, and the next 
 
 - [Node.js](https://nodejs.org/) (v18 or later)
 - npm (comes with Node.js)
+- A Cloudflare R2 bucket (free tier)
+- An Anthropic API key
 
 ### Install
 
@@ -76,20 +127,36 @@ cd quiz-generator
 npm install
 ```
 
-### Run the App
+### Configure
+
+Create a `.env` file in the project root:
+
+```env
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+CLOUDFLARE_R2_ACCESS_KEY_ID=your_access_key_id
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_access_key
+CLOUDFLARE_R2_BUCKET_NAME=your_bucket_name
+CLOUDFLARE_R2_ENDPOINT=https://your_account_id.r2.cloudflarestorage.com
+ANTHROPIC_API_KEY=your_anthropic_api_key
+ADMIN_PASSWORD=your_admin_password
+```
+
+### Run
 
 ```bash
-npm start
+node server/index.js
 ```
 
 Then open **http://localhost:3000** in your browser.
+
+The admin UI is available at **http://localhost:3000/admin** (requires admin password).
 
 ### Run the MCP Server (for Claude Code)
 
 The MCP server runs over stdio and is used by Claude Code workflows:
 
 ```bash
-npm run mcp
+node mcp/server.js
 ```
 
 The `.mcp.json` file at the project root configures Claude Code to use this server automatically.
@@ -98,8 +165,13 @@ The `.mcp.json` file at the project root configures Claude Code to use this serv
 
 ## Built With
 
-- **HTML / CSS / JavaScript** — plain frontend, no framework
-- **Express** — serves the frontend and the `/api/questions` endpoint
-- **Open Trivia DB** — free trivia question database ([opentdb.com](https://opentdb.com/))
-- **MCP SDK** (`@modelcontextprotocol/sdk`) — Model Context Protocol server for Claude Code integration
-- **Zod** — input validation for the MCP server
+- **HTML / CSS / JavaScript** — plain frontend and admin UI, no framework
+- **Express** — backend server, REST API, admin UI serving
+- **SQLite** (`better-sqlite3`) — local database for question review queue
+- **Cloudflare R2** — private storage for reference documents
+- **Anthropic Claude API** — health question generation at runtime
+- **MCP SDK** (`@modelcontextprotocol/sdk`) — Model Context Protocol server
+- **pdf-parse** — PDF text extraction
+- **mammoth** — Word document (.docx) text extraction
+- **multer** — file upload handling
+- **dotenv** — environment variable management
