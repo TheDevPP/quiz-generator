@@ -31,7 +31,7 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, sans-serif;
-  background: var(--bg);
+  background: linear-gradient(135deg, #f0f9ff 0%, #fdf4ff 100%);
   color: var(--text);
   min-height: 100vh;
   display: flex;
@@ -76,18 +76,30 @@ body {
 }
 
 #screen-category h1 {
-  font-size: 1.75rem;
+  font-size: 2.2rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #0891b2, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .subtitle {
   font-size: 1rem;
   color: var(--text-secondary);
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
   max-width: 320px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.tagline {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  margin-bottom: 2rem;
 }
 
 .category-list {
@@ -103,20 +115,21 @@ body {
   padding: 1rem 1.5rem;
   background: var(--card-bg);
   color: var(--text);
-  border: 2px solid var(--border);
+  border: none;
+  border-left: 4px solid var(--primary);
   border-radius: var(--radius);
   font-size: 1.05rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: var(--shadow);
+  text-align: left;
 }
 
 .category-btn:hover {
-  border-color: var(--primary);
   background: var(--primary-light);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(8, 145, 178, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .category-btn:active {
@@ -142,6 +155,12 @@ body {
   background: var(--privacy-bg);
   border-radius: var(--radius-sm);
   display: inline-block;
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.015); opacity: 0.85; }
 }
 
 /* --- Quiz Screen --- */
@@ -203,6 +222,19 @@ body {
   font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.6;
+  letter-spacing: -0.02em;
+}
+
+.doctor-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--correct);
+  background: var(--correct-bg);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.02em;
 }
 
 /* --- Answers --- */
@@ -288,6 +320,7 @@ body {
 .feedback {
   background: var(--card-bg);
   border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
   border-radius: var(--radius);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
@@ -299,6 +332,16 @@ body {
   font-size: 1.1rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
+}
+
+.feedback.is-correct,
+.feedback:has(.feedback-result.is-correct) {
+  border-left-color: var(--correct);
+}
+
+.feedback.is-incorrect,
+.feedback:has(.feedback-result.is-incorrect) {
+  border-left-color: var(--incorrect);
 }
 
 .feedback-result.is-correct {
@@ -360,7 +403,9 @@ body {
 .loading {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -368,10 +413,11 @@ body {
 }
 
 .spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid var(--border);
-  border-top-color: var(--primary);
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(8, 145, 178, 0.15);
+  border-top-color: #0891b2;
+  border-right-color: #7c3aed;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -386,7 +432,7 @@ body {
 
 @media (max-width: 480px) {
   #screen-category h1 {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
   }
   .category-btn {
     padding: 0.85rem 1.25rem;
