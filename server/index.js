@@ -371,34 +371,44 @@ app.post("/api/documents/:id/generate", adminAuth, async (req, res) => {
 // ============================================================
 
 // Get questions by status (admin) or only verified (public)
-app.get("/api/questions", (req, res) => {
-  const { status, category, limit } = req.query;
-  const isAdmin = req.headers["x-admin-password"] === process.env.ADMIN_PASSWORD;
+app.get("/api/quiz/question", (req, res) => {
+  const { category, exclude } = req.query;
+  const excludeIds = exclude ? exclude.split(",").filter(Boolean) : [];
 
-  let sql = "SELECT * FROM questions WHERE 1=1";
+  let sql = "SELECT id, category, question_text, question_type, option_a, option_b, option_c, option_d FROM questions WHERE status = 'verified'";
   const params = [];
-
-  if (status && isAdmin) {
-    sql += " AND status = ?";
-    params.push(status);
-  } else if (!isAdmin) {
-    sql += " AND status = 'verified'";
-  }
 
   if (category) {
     sql += " AND category = ?";
     params.push(category);
   }
 
-  sql += " ORDER BY created_at DESC";
-
-  if (limit) {
-    sql += " LIMIT ?";
-    params.push(parseInt(limit, 10));
+  if (excludeIds.length > 0) {
+    const placeholders = excludeIds.map(() => "?").join(",");
+    sql += ` AND id NOT IN (${placeholders})`;
+    params.push(...excludeIds);
   }
 
-  const questions = db.prepare(sql).all(...params);
-  res.json(questions);
+  sql += " ORDER BY RANDOM() LIMIT 1";
+  let question = db.prepare(sql).get(...params);
+
+  if (!question) {
+    // All questions seen — reset and start over
+    let resetSql = "SELECT id, category, question_text, question_type, option_a, option_b, option_c, option_d FROM questions WHERE status = 'verified'";
+    const resetParams = [];
+    if (category) {
+      resetSql += " AND category = ?";
+      resetParams.push(category);
+    }
+    resetSql += " ORDER BY RANDOM() LIMIT 1";
+    question = db.prepare(resetSql).get(...resetParams);
+    if (!question) {
+      return res.status(404).json({ error: "No questions available" });
+    }
+    return res.json({ ...question, reset: true });
+  }
+
+  res.json(question);
 });
 
 // Get a single question by ID
@@ -568,28 +578,6 @@ app.patch("/api/questions/:id/review", adminAuth, (req, res) => {
 // ============================================================
 // Quiz (public)
 // ============================================================
-
-// Get a random verified question, optionally filtered by category
-app.get("/api/quiz/question", (req, res) => {
-  const { category } = req.query;
-
-  let sql = "SELECT id, category, question_text, option_a, option_b, option_c, option_d FROM questions WHERE status = 'verified'";
-  const params = [];
-
-  if (category) {
-    sql += " AND category = ?";
-    params.push(category);
-  }
-
-  sql += " ORDER BY RANDOM() LIMIT 1";
-
-  const question = db.prepare(sql).get(...params);
-  if (!question) {
-    return res.status(404).json({ error: "No questions available" });
-  }
-
-  res.json(question);
-});
 
 // Submit an answer and get the result
 app.post("/api/quiz/answer", (req, res) => {
