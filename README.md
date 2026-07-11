@@ -90,23 +90,20 @@ Teenagers play the quiz
 
 ## Screenshots
 
-### Main Quiz Screen
-![Main quiz screen](screenshots/quiz-screen.png)
+### Category Selection Screen
+![Category selection screen](screenshots/01-category-screen.png)
 
 ### Multiple Choice Question
-![Multiple choice question](screenshots/multiple-choice.png)
-
-### True or False Question
-![True or false question](screenshots/true-or-false.png)
-
-### Scenario Question
-![Scenario question](screenshots/scenario-question.png)
+![Multiple choice question](screenshots/02-multiple-choice.png)
 
 ### Correct Answer with Explanation
-![Correct answer feedback](screenshots/correct-answer.png)
+![Correct answer feedback](screenshots/03-correct-answer.png)
 
-### Admin — Doctor Review Queue
-![Doctor review queue](screenshots/doctor-review.png)
+### Incorrect Answer Feedback
+![Incorrect answer feedback](screenshots/04-wrong-answer.png)
+
+### Category Completion Screen
+![Category completion](screenshots/05-completion.png)
 
 ---
 
