@@ -110,7 +110,7 @@ body {
 }
 
 .category-btn {
-  display: block;
+  display: flex;
   width: 100%;
   padding: 1rem 1.5rem;
   background: var(--card-bg);
@@ -124,12 +124,31 @@ body {
   transition: all 0.2s;
   box-shadow: var(--shadow);
   text-align: left;
+  justify-content: space-between;
+  align-items: center;
+  animation: categoryPulse 0.6s ease-out 1;
+}
+
+.category-btn .arrow {
+  color: var(--primary);
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.category-btn:hover .arrow {
+  transform: translateX(4px);
 }
 
 .category-btn:hover {
   background: var(--primary-light);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(8, 145, 178, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes categoryPulse {
+  0% { transform: scale(1); box-shadow: var(--shadow); }
+  50% { transform: scale(1.02); box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2); }
+  100% { transform: scale(1); box-shadow: var(--shadow); }
 }
 
 .category-btn:active {
@@ -227,14 +246,15 @@ body {
 
 .doctor-badge {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--correct);
   background: var(--correct-bg);
-  padding: 0.2rem 0.6rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 999px;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   letter-spacing: 0.02em;
+  border-left: 3px solid var(--correct);
 }
 
 /* --- Answers --- */
