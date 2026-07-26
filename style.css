@@ -216,6 +216,23 @@ body {
   letter-spacing: 0.04em;
 }
 
+.quiz-top-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-counter {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--correct);
+  background: var(--correct-bg);
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .question-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -402,6 +419,53 @@ body {
 
 .btn-primary:hover {
   background: var(--primary-hover);
+}
+
+/* --- Summary Screen --- */
+
+.summary-card {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+.summary-heading {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.summary-score {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--correct);
+  margin-bottom: 2rem;
+}
+
+.summary-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.btn-outline {
+  display: block;
+  padding: 0.85rem 1.5rem;
+  background: var(--card-bg);
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-outline:hover {
+  background: var(--primary-light);
 }
 
 /* --- Error --- */

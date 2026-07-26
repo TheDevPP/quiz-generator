@@ -27,7 +27,10 @@
     <div id="screen-quiz" class="screen hidden">
       <div class="quiz-top">
         <button id="btn-back" class="btn-back">&larr; Change Category</button>
-        <span id="category-tag" class="category-tag"></span>
+        <div class="quiz-top-right">
+          <span id="score-counter" class="score-counter">0 correct / 0 answered</span>
+          <span id="category-tag" class="category-tag"></span>
+        </div>
       </div>
 
       <div class="question-card">
@@ -45,6 +48,18 @@
 
       <div class="quiz-actions">
         <button id="btn-next" class="btn-primary hidden">Next Question</button>
+      </div>
+    </div>
+
+    <!-- Session Summary -->
+    <div id="screen-summary" class="screen hidden">
+      <div class="summary-card">
+        <p class="summary-heading">🎉 Session Complete!</p>
+        <p class="summary-score"><span id="summary-correct">0</span> correct out of <span id="summary-total">0</span></p>
+        <div class="summary-actions">
+          <button id="btn-summary-category" class="btn-primary">Try Another Category</button>
+          <button id="btn-summary-retry" class="btn-outline">Try Again</button>
+        </div>
       </div>
     </div>
 

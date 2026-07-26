@@ -3,12 +3,14 @@ const screens = {
   category: document.getElementById("screen-category"),
   quiz: document.getElementById("screen-quiz"),
   error: document.getElementById("screen-error"),
+  summary: document.getElementById("screen-summary"),
 };
 
 const els = {
   categoryBtns: document.querySelectorAll(".category-btn"),
   btnBack: document.getElementById("btn-back"),
   categoryTag: document.getElementById("category-tag"),
+  scoreCounter: document.getElementById("score-counter"),
   scenarioBlock: document.getElementById("scenario-block"),
   questionText: document.getElementById("question-text"),
   answers: document.getElementById("answers"),
@@ -20,6 +22,10 @@ const els = {
   btnErrorBack: document.getElementById("btn-error-back"),
   loading: document.getElementById("loading"),
   completionMessage: document.getElementById("completion-message"),
+  summaryCorrect: document.getElementById("summary-correct"),
+  summaryTotal: document.getElementById("summary-total"),
+  btnSummaryCategory: document.getElementById("btn-summary-category"),
+  btnSummaryRetry: document.getElementById("btn-summary-retry"),
 };
 
 // State
@@ -28,12 +34,24 @@ const state = {
   question: null,
   answered: false,
   seenIds: [],
+  correctCount: 0,
+  totalAnswered: 0,
 };
 
 // Helpers
 function showScreen(name) {
   Object.values(screens).forEach((s) => s.classList.add("hidden"));
   screens[name].classList.remove("hidden");
+}
+
+function updateScoreCounter() {
+  els.scoreCounter.textContent = `${state.correctCount} correct / ${state.totalAnswered} answered`;
+}
+
+function resetScore() {
+  state.correctCount = 0;
+  state.totalAnswered = 0;
+  updateScoreCounter();
 }
 
 function showLoading(show) {
@@ -150,6 +168,10 @@ async function handleAnswer(answerText) {
     els.feedbackExplanation.textContent = result.explanation;
     els.feedback.classList.remove("hidden");
     els.btnNext.classList.remove("hidden");
+
+    state.totalAnswered++;
+    if (result.correct) state.correctCount++;
+    updateScoreCounter();
   } catch (err) {
     state.answered = false;
     buttons.forEach((b) => {
@@ -165,6 +187,7 @@ els.categoryBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
     state.category = btn.dataset.category;
     els.completionMessage.classList.add("hidden");
+    resetScore();
     showLoading(true);
     try {
       const question = await fetchQuestion(state.category);
@@ -187,9 +210,10 @@ els.btnNext.addEventListener("click", async () => {
   try {
     const question = await fetchQuestion(state.category);
     if (question.reset) {
+      els.summaryCorrect.textContent = state.correctCount;
+      els.summaryTotal.textContent = state.totalAnswered;
       state.seenIds = [];
-      showScreen("category");
-      els.completionMessage.classList.remove("hidden");
+      showScreen("summary");
       return;
     }
     renderQuestion(question);
@@ -202,4 +226,23 @@ els.btnNext.addEventListener("click", async () => {
 
 els.btnErrorBack.addEventListener("click", () => {
   showScreen("category");
+});
+
+els.btnSummaryCategory.addEventListener("click", () => {
+  resetScore();
+  showScreen("category");
+});
+
+els.btnSummaryRetry.addEventListener("click", async () => {
+  resetScore();
+  showLoading(true);
+  try {
+    const question = await fetchQuestion(state.category);
+    showScreen("quiz");
+    renderQuestion(question);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    showLoading(false);
+  }
 });
