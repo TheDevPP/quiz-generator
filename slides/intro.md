@@ -92,7 +92,7 @@ Expand to new topics anytime.
 
 # Try it
 
-🔗 **[your-live-url-here]**
+🔗 **https://quiz-generator-rugz.onrender.com/**
 
 📂 **github.com/TheDevPP/quiz-generator**
 
